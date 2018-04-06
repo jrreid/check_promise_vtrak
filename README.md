@@ -1,7 +1,7 @@
 check_promise_vtrak
 ===================
 
-Nagios plugin to monitor a Promise Vtrak
+Nagios plugin to monitor a Promise Vtrak or Vess device
 
 Please go to http://www.claudiokuenzler.com/nagios-plugins/check_promise_vtrak.php for up to date documentation.
 
