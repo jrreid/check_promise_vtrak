@@ -7,6 +7,7 @@
 # Copyright:    2007 Barry O'Donovan (bod) - http://www.barryodonovan.com/
 # Copyright:    2007 Open Source Solutions Ltd - http://www.opensolutions.ie/
 # Copyright:    2014 Claudio Kuenzler (ck) - http://www.claudiokuenzler.com/
+# Copyright:    2018 Jaosn Reid (jr) - https://github.com/jrreid
 # Usage:        ./check_promise_vtrak.pl -H <host> [-C <community>] -m <model> -t <type>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of 
@@ -36,8 +37,9 @@
 # 20140702 Added ctrl check type (ck)
 # 20140702 Merged disk and diskonline checks (ck)
 # 20140703 Added spare check type (ck)
+# 20180405 Added support for newer Vess models (jr)
 #########################################################################
-my $version = '20140703';
+my $version = '20180405';
 #########################################################################
 use strict;
 use Getopt::Long;
@@ -225,6 +227,42 @@ elsif ( $model =~ m/(M200)/) {
   $oid_temp_opstatus = ".1.3.6.1.4.1.7933.2.1.5.1.1.3.1";
   $oid_bat_remcapacity = ".1.3.6.1.4.1.7933.2.1.7.1.1.11.1";
   $oid_bat_opstatus = "1.3.6.1.4.1.7933.2.1.7.1.1.14.1";
+}
+elsif ( $model =~ m/(r2000)/) {
+  $oid_base = '.1.3.6.1.4.1.7933.1.20';
+  $oid_model = "$oid_base.1.2.1.4.1";
+  $oid_vendorname = "$oid_base.1.2.1.3.1";
+  $oid_serialnumber = "$oid_base.1.2.1.5.1";
+  $oid_firmware = "$oid_base.1.3.1.13.1.1";
+  $oid_ctrl_present = "$oid_base.1.1.1.7.1";
+  $oid_ctrl_opstatus = "$oid_base.1.3.1.15.1";
+  $oid_ctrl_readiness = "$oid_base.1.3.1.17.1";
+  $oid_encl_id = "$oid_base.1.10.1.1.1";
+  $oid_encl_type = "$oid_base.1.10.1.2.1";
+  $oid_encl_count = "$oid_base.1.1.1.9.1";
+  $oid_encl_opstatus = "$oid_base.1.10.1.3.1";
+  $oid_ps_opstatus = "$oid_base.1.12.1.2.1.1";
+  $oid_disk_type = "$oid_base.2.1.1.2.1";
+  $oid_disk_model = "$oid_base.2.1.1.4.1";
+  $oid_disk_serial = "$oid_base.2.1.1.5.1";
+  $oid_disk_firmware = "$oid_base.2.1.1.6.1";
+  $oid_disk_opstatus = "$oid_base.2.1.1.8.1";
+  $oid_disk_present = "$oid_base.1.3.1.19.1.1";
+  $oid_disk_online = "$oid_base.1.3.1.20.1.1";
+  $oid_disk_offline = "$oid_base.1.3.1.21.1.1";
+  $oid_disk_pfa = "$oid_base.1.3.1.22.1.1";
+  $oid_disk_rebuilding = "$oid_base.1.3.1.23.1.1";
+  $oid_disk_missing = "$oid_base.1.3.1.24.1.1";
+  $oid_disk_unconfigured = "$oid_base.1.3.1.25.1.1";
+  $oid_spare_present = "$oid_base.1.3.1.30.1.1";
+  $oid_spare_id = "$oid_base.2.6.1.1.1";
+  $oid_spare_opstatus = "$oid_base.2.6.1.2.1";
+  $oid_spare_physdrv = "$oid_base.2.6.1.3.1";
+  $oid_fan_opstatus = "$oid_base.1.11.1.3.1.1";
+  $oid_temp_current = "$oid_base.1.13.1.2.1.1";
+  $oid_temp_opstatus = "$oid_base.1.13.1.3.1.1";
+  $oid_bat_remcapacity = "$oid_base.1.15.1.11";
+  $oid_bat_opstatus = "$oid_base.1.15.1.14";
 }
 else {
   print "Unknown model $model given. Please refer to help for valid models.\n";
@@ -458,7 +496,7 @@ case "ps" {
 
   my %value = %{$result};
   my $key;
-  my $pscount = keys %{$result};
+  my $pscount = 0;
   my $problemcount = 0;
 
 
@@ -466,8 +504,16 @@ case "ps" {
     #print "Key: $key\n"; # debug
     #print "Value: $value{$key}\n"; # debug
     if( ( "$value{$key}" ne "Powered On and Functional" ) ) {
-      $problemcount++;
+      if( ( "$value{$key}" ne "Not Present") ) {
+        $problemcount++;
+      }
+    } else {
+      $pscount++;
     }
+  }
+
+  if($pscount == 0) {
+    $problemcount++;
   }
 
   if ( $problemcount > 0 ) {
@@ -496,7 +542,7 @@ case "fan" {
 
   my %value = %{$result};
   my $key;
-  my $fancount = keys %{$result};
+  my $fancount = 0;
   my $problemcount = 0;
 
 
@@ -504,8 +550,16 @@ case "fan" {
     #print "Key: $key\n"; # debug
     #print "Value: $value{$key}\n"; # debug
     if( ( "$value{$key}" ne "Functional" ) ) {
+      if( ( "$value{$key}" ne "Not Installed" ) ) {
       $problemcount++;
+      }
+    } else {
+      $fancount++;
     }
+  }
+
+  if($fancount == 0) {
+    $problemcount++;
   }
 
   if ( $problemcount > 0 ) {
