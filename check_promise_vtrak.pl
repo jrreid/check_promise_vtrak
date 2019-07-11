@@ -92,6 +92,10 @@ my $oid_disk_pfa = '';
 my $oid_disk_rebuilding = '';
 my $oid_disk_missing = '';
 my $oid_disk_unconfigured = '';
+my $oid_logical_present = '';
+my $oid_logical_online = '';
+my $oid_logical_offline = '';
+my $oid_logical_opstatus = '';
 my $oid_spare_present = '';
 my $oid_spare_id = '';
 my $oid_spare_opstatus = '';
@@ -149,6 +153,7 @@ Options:
 Check Types:
 ctrl\t\t -> Check status of all controllers
 disk\t\t -> Check status of all physical disks
+logical\t\t -> Check status of all logical disks
 enclosure\t -> Check status of all enclosures
 fan\t\t -> Check status of all fans (blowers)
 info\t\t -> Show basic information of the Vtrak
@@ -254,6 +259,10 @@ elsif ( $model =~ m/(r2000)/) {
   $oid_disk_rebuilding = "$oid_base.1.3.1.23.1.1";
   $oid_disk_missing = "$oid_base.1.3.1.24.1.1";
   $oid_disk_unconfigured = "$oid_base.1.3.1.25.1.1";
+  $oid_logical_present = "$oid_base.1.3.1.26.1.1";
+  $oid_logical_online = "$oid_base.1.3.1.27.1.1";
+  $oid_logical_offline = "$oid_base.1.3.1.28.1.1";
+  $oid_logical_opstatus = "$oid_base.2.5.1.5";
   $oid_spare_present = "$oid_base.1.3.1.30.1.1";
   $oid_spare_id = "$oid_base.2.6.1.1.1";
   $oid_spare_opstatus = "$oid_base.2.6.1.2.1";
@@ -424,6 +433,53 @@ case "disk" {
     exit 0
   }
 
+
+}
+# --------- logical --------- #
+# Checks the health status of all logical drives
+case "logical" {
+  my $result = $session->get_table(-baseoid => $oid_logical_opstatus);
+
+  if (!defined($result)) {
+    printf("ERROR: Description table : %s.\n", $session->error);
+  if ($session->error =~ m/noSuchName/ || $session->error =~ m/does not exist/) {
+    print "Are you really sure the target host is a $model???!\n";
+  }
+  $session->close;
+  exit 2;
+ }
+
+  my %value = %{$result};
+  my $key;
+  my $logicalcount = 0;
+  my $problemcount = 0;
+
+
+  foreach $key (keys %{$result}) {
+    #print "Key: $key\n"; # debug
+    #print "Value: $value{$key}\n"; # debug
+    if( ( "$value{$key}" ne "OK" ) ) {
+      if( ( "$value{$key}" ne "Not Present") ) {
+        $problemcount++;
+      }
+      $logicalcount++;
+    } else {
+      $logicalcount++;
+    }
+  }
+
+  if($logicalcount == 0) {
+    $problemcount++;
+  }
+
+  if ( $problemcount > 0 ) {
+    print "LOGICAL DRIVE CRITICAL - $problemcount logical drive not ok\n";
+    exit 2
+  }
+  else {
+    print "LOGICAL DRIVE OK - $logicalcount logical drive present\n";
+    exit 0
+  }
 
 }
 # --------- enclosure --------- #
